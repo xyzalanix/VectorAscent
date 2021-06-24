@@ -38,13 +38,13 @@ def main(args):
     shape_groups = []
     if args.use_blob:
         for i in range(num_paths):
-            num_segments = random.randint(1, 6)
+            num_segments = random.randint(1, 64)
             num_control_points = torch.zeros(num_segments, dtype = torch.int32) + 2
             points = []
             p0 = (random.random(), random.random())
             points.append(p0)
             for j in range(num_segments):
-                radius = 0.05
+                radius = 1.0
                 p1 = (p0[0] + radius * (random.random() - 0.5), p0[1] + radius * (random.random() - 0.5))
                 p2 = (p1[0] + radius * (random.random() - 0.5), p1[1] + radius * (random.random() - 0.5))
                 p3 = (p2[0] + radius * (random.random() - 0.5), p2[1] + radius * (random.random() - 0.5))
@@ -58,7 +58,7 @@ def main(args):
             points[:, 1] *= canvas_height
             path = pydiffvg.Path(num_control_points = num_control_points,
                                  points = points,
-                                 stroke_width = torch.tensor(1.0),
+                                 stroke_width = torch.tensor(0.01),
                                  is_closed = True)
             shapes.append(path)
             path_group = pydiffvg.ShapeGroup(shape_ids = torch.tensor([len(shapes) - 1]),
@@ -69,7 +69,7 @@ def main(args):
             shape_groups.append(path_group)
     else:
         for i in range(num_paths):
-            num_segments = random.randint(1, 6)
+            num_segments = random.randint(1, 12)
             num_control_points = torch.zeros(num_segments, dtype = torch.int32) + 2
             points = []
             p0 = (random.random(), random.random())
@@ -89,8 +89,8 @@ def main(args):
             #points = torch.rand(3 * num_segments + 1, 2) * min(canvas_width, canvas_height)
             path = pydiffvg.Path(num_control_points = num_control_points,
                                  points = points,
-                                 stroke_width = torch.tensor(0.1),
-                                 is_closed = True)
+                                 stroke_width = torch.tensor(0.01),
+                                 is_closed = False)
             shapes.append(path)
             path_group = pydiffvg.ShapeGroup(shape_ids = torch.tensor([len(shapes) - 1]),
                                              fill_color = None,
@@ -159,7 +159,7 @@ def main(args):
                      None,
                      *scene_args)
         # Save the intermediate render.
-        pydiffvg.imwrite(img.cpu(), os.path.join(outdir, 'iter_{0:04d}.png'.format(t)), gamma=gamma)
+      #  pydiffvg.imwrite(img.cpu(), os.path.join(outdir, 'iter_{0:04d}.png'.format(t)), gamma=gamma)
         image_features = clip_utils.embed_image(img)
         loss = -torch.cosine_similarity(text_features, image_features, dim=-1).mean()
         print('render loss:', loss.item())
@@ -175,15 +175,15 @@ def main(args):
         color_optim.step()
         if len(stroke_width_vars) > 0:
             for path in shapes:
-                path.stroke_width.data.clamp_(1.0, max_width)
+                path.stroke_width.data.clamp_(0.2, max_width)
         if args.use_blob:
             for group in shape_groups:
-                group.fill_color.data.clamp_(0.0, 1.0)
+                group.fill_color.data.clamp_(0.1, 1.0)
         else:
             for group in shape_groups:
-                group.stroke_color.data.clamp_(0.0, 1.0)
+                group.stroke_color.data.clamp_(1.0, 1.0)
 
-        if t % 10 == 0 or t == args.num_iter - 1:
+        if t % 1 == 0 or t == args.num_iter - 1:
             pydiffvg.save_svg(os.path.join(outdir, 'iter_{0:04d}.svg'.format(t)),
                               canvas_width, canvas_height, shapes, shape_groups)
             clip_utils.plot_losses(losses, outdir)
